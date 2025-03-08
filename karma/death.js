@@ -1,8 +1,10 @@
+// Global scope for persistence
+
 // config
-const KARMA_DEATH_PENALTY_PERCENTAGE = 0.1;
+const KARMA_DEATH_PENALTY_PERCENTAGE = 0.05;
 const MINIMUM_KARMA_PENALTY = 1;
 
-// Declare vars
+// Declare all variables at the top
 let player, playerUUID, currentKarma, penaltyAmount, remainingKarma;
 
 // Player respawn event

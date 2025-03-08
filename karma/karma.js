@@ -1,12 +1,21 @@
-// This Karma system allows us to provide bonuses for player activity. It is designed to encourage interaction between players.
+// File: kubejs/server_scripts/karma_donor_system.js
 
+// Donor level multipliers - easily configurable
+const donorMultipliers = {
+    "supporter": 1,    // +1 bonus
+    "sponsor": 2,      // +2 bonus
+    "champion": 3      // +3 bonus
+    // Add more donor levels as needed
+};
+
+// Karma system constants
 const karmaIncrementInterval = 1200; // Karma increment interval in ticks (60 seconds)
 const notificationInterval = 6000; // Notification interval in ticks (5 minutes)
 const karmaBonus = 3; // Karma Bonus for BlueMap visibility
 const groupActivityRadius = 50; // Radius to check for nearby players
 
 // Declare variables that will be used throughout the script
-let apiInstance, playerUUID, blueMapWebApp, isVisible, currentKarma, newKarma, player, visibilityText, groupBonusText;
+let apiInstance, playerUUID, blueMapWebApp, isVisible, currentKarma, newKarma, player, visibilityText, groupBonusText, donorText;
 
 // Function to check if a player is visible on BlueMap
 function getBlueMapVisibility(player) {
@@ -78,9 +87,13 @@ ServerEvents.tick(event => {
             const nearbyPlayers = calculateGroupBonus(server, player, groupActivityRadius);
             const groupBonus = nearbyPlayers; 
 
+            // Get donor bonus if applicable
+            const donorLevel = player.persistentData.donorLevel || "";
+            const donorBonus = donorMultipliers[donorLevel.toLowerCase()] || 0;
+
             // Apply total Bonus (stacking by sum, not product)
             const visibilityBonus = isVisible ? karmaBonus : 0;
-            const totalBonus = 1 + visibilityBonus + groupBonus;
+            const totalBonus = 1 + visibilityBonus + groupBonus + donorBonus;
 
             // Increment karma
             currentKarma = player.persistentData.karmaPoints || 0;
@@ -107,7 +120,9 @@ ServerEvents.commandRegistry(event => {
     const { commands: Commands } = event;
     const EntityArgument = Java.loadClass('net.minecraft.commands.arguments.EntityArgument');
     const IntegerArgumentType = Java.loadClass('com.mojang.brigadier.arguments.IntegerArgumentType');
+    const StringArgumentType = Java.loadClass('com.mojang.brigadier.arguments.StringArgumentType');
 
+    // Karma command registration
     event.register(Commands.literal('karma')
         .executes(ctx => {
             const server = Utils.server;
@@ -132,9 +147,15 @@ ServerEvents.commandRegistry(event => {
             const nearbyPlayers = calculateGroupBonus(server, player, groupActivityRadius);
             groupBonusText = nearbyPlayers > 0 ? `§aActive (+${nearbyPlayers})` : "§cInactive";
 
+            // Get donor bonus if applicable
+            const donorLevel = player.persistentData.donorLevel || "";
+            const donorBonus = donorMultipliers[donorLevel.toLowerCase()] || 0;
+            donorText = donorBonus > 0 ? `§a${donorLevel} (+${donorBonus})` : "§cNone";
+
             player.tell(`§eYour current Karma: §a${currentKarma}`);
             player.tell(`§eMap Visibility: ${visibilityText}`);
             player.tell(`§eGroup Activity: ${groupBonusText}`);
+            player.tell(`§eDonor Status: ${donorText}`);
             return 1;
         })
         .then(Commands.literal('info')
@@ -150,10 +171,13 @@ ServerEvents.commandRegistry(event => {
                 player.tell("§7- §a+1 karma §7every 60 seconds you are active (not AFK).");
                 player.tell(`§7- §aMap Visibility Bonus: §e+${karmaBonus} §7when visible on the web map.`);
                 player.tell(`§7- §aGroup Activity Bonus: §e+n1 §7, with n being other players within §a${groupActivityRadius} blocks.`);
+                player.tell(`§7- §aDonor Bonus: §7Additional karma to reward your contributions to server hosting costs.`);
                 player.tell(" ");
                 player.tell("§6How to Use Karma:");
                 player.tell(`§7- The §a/fasttravel §7command allows you to fast travel around.`);
-		        player.tell(`§7- The §a/changereligion §7command allows you to convert to another faith.`);
+                player.tell(`§7- The §a/exchange §7command allows you to exchange karma for cogs.`);
+                player.tell(`§7- The §a/changereligion §7command allows you to convert to another faith.`);
+		player.tell(`§7- The §a/devotion §7command takes 10,000 karma and unlocks your extra ability.`);
                 player.tell(`§7- §eMore features coming soon! Stay tuned.`);
                 return 1;
             })
@@ -222,5 +246,91 @@ ServerEvents.commandRegistry(event => {
                 )
             )
         )
+    );
+    
+    // Donor commands registration
+    // Command to set a donor level (overwriting any existing level)
+    event.register(Commands.literal('donorset')
+        .requires(source => source.hasPermission(2)) // Requires OP permission (level 2)
+        .then(Commands.argument('player', EntityArgument.player())
+            .then(Commands.argument('level', StringArgumentType.string())
+                .executes(ctx => {
+                    const player = EntityArgument.getPlayer(ctx, 'player');
+                    const level = StringArgumentType.getString(ctx, 'level');
+                    
+                    // Store the donor level in player's persistent data
+                    player.persistentData.donorLevel = level;
+                    
+                    // Get bonus amount for this level
+                    const donorBonus = donorMultipliers[level.toLowerCase()] || 0;
+                    
+                    // Send success message to command executor
+                    ctx.source.sendSuccess(`Set donor level for ${player.name.string} to "${level}" (Karma bonus: +${donorBonus})`, true);
+                    return 1;
+                })
+            )
+        )
+    );
+    
+    // Command to remove a donor level
+    event.register(Commands.literal('donordel')
+        .requires(source => source.hasPermission(2)) // Requires OP permission (level 2)
+        .then(Commands.argument('player', EntityArgument.player())
+            .executes(ctx => {
+                const player = EntityArgument.getPlayer(ctx, 'player');
+                
+                // Check if player has a donor level
+                if (!player.persistentData.donorLevel) {
+                    ctx.source.sendFailure(`${player.name.string} does not have a donor level`);
+                    return 0;
+                }
+                
+                // Remove the donor level from persistent data
+                delete player.persistentData.donorLevel;
+                
+                // Send success message to command executor
+                ctx.source.sendSuccess(`Removed donor level from ${player.name.string}`, true);
+                return 1;
+            })
+        )
+    );
+    
+    // Command to get donor level for a player
+    event.register(Commands.literal('donorget')
+        .requires(source => source.hasPermission(2)) // Requires OP permission (level 2)
+        .then(Commands.argument('player', EntityArgument.player())
+            .executes(ctx => {
+                const player = EntityArgument.getPlayer(ctx, 'player');
+                
+                // Check if player has a donor level
+                if (!player.persistentData.donorLevel) {
+                    ctx.source.sendSuccess(`${player.name.string} has no donor level`, true);
+                } else {
+                    const donorLevel = player.persistentData.donorLevel;
+                    const donorBonus = donorMultipliers[donorLevel.toLowerCase()] || 0;
+                    ctx.source.sendSuccess(`${player.name.string}'s donor level: ${donorLevel} (Karma bonus: +${donorBonus})`, true);
+                }
+                return 1;
+            })
+        )
+        .executes(ctx => {
+            // Allow players to check their own donor level
+            if (!ctx.source.player) {
+                ctx.source.sendFailure("This command can only be executed by a player when no target is specified");
+                return 0;
+            }
+            
+            const player = ctx.source.player;
+            
+            // Check if player has a donor level
+            if (!player.persistentData.donorLevel) {
+                ctx.source.sendSuccess("You have no donor level", true);
+            } else {
+                const donorLevel = player.persistentData.donorLevel;
+                const donorBonus = donorMultipliers[donorLevel.toLowerCase()] || 0;
+                ctx.source.sendSuccess(`Your donor level: ${donorLevel} (Karma bonus: +${donorBonus})`, true);
+            }
+            return 1;
+        })
     );
 });

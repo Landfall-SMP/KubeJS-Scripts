@@ -1,5 +1,3 @@
-// This script lets us perform actions when a player is holding an item.
-
 let checkCounter = 0
 
 ServerEvents.tick(event => {

@@ -1,10 +1,10 @@
-// cfg constants
-const RELIGION_KARMA_COST = 6000;
+// Configuration constants
+const RELIGION_KARMA_COST = 5000; // Karma cost to change religion
 const RELIGION_CHANGE_LOCATION = {
-    dimension: 'ae2:spatial_storage',
-    x: 241,
-    y: 67,
-    z: -280
+    dimension: 'landfall:limbo',
+    x: 28,
+    y: -35,
+    z: 35
 };
 
 // Function to handle religion change
@@ -23,7 +23,9 @@ function handleReligionChange(player) {
 
     // Teleport the player using server command
     const server = Utils.server;
-    server.runCommandSilent(`execute as ${player.name.string} in ae2:spatial_storage run tp ${player.name.string} 241 67 -280`);
+    server.runCommandSilent(`gamemode adventure ${player.name.string}`);
+    server.runCommandSilent(`scoreboard players set ${player.name.string} devotion 0`);
+    server.runCommandSilent(`execute as ${player.name.string} in landfall:limbo run tp ${player.name.string} 28 -33 35`);
 
     player.tell(`§aYou have changed your religion at the cost of §e${RELIGION_KARMA_COST} karma§a.`);
     return true;

@@ -1,25 +1,23 @@
-// This script is used to teleport players to and from the admin shop, which is otherwise inaccessible.
-
 global.playerPositions = global.playerPositions || {};
 global.teleportTasks = global.teleportTasks || {};
 
 // Constants
 const SHOP = {
-    DIMENSION: "ae2:spatial_storage",
-    X: 286,
-    Y: 65,
-    Z: -226,
-    RADIUS: 400000
+    DIMENSION: "landfall:limbo",
+    X: 11,
+    Y: 275,
+    Z: 22,
+    RADIUS: 400
 };
 
 const FALLBACK = {
     DIMENSION: "minecraft:overworld",
     X: 0,
-    Y: 100,
+    Y: 115,
     Z: 0
 };
 
-// Variable declarations
+// Variable declarations bc I'm lazy :D
 let player;
 let playerUUID;
 let currentPos;
@@ -70,7 +68,6 @@ ServerEvents.commandRegistry(event => {
             // Handle shop logic
             if (isInShop) {
                 savedPos = global.playerPositions[playerUUID];
-
                 if (savedPos) {
                     Utils.server.runCommandSilent(`gamemode survival ${player.username}`);
                     player.teleportTo(
@@ -95,6 +92,7 @@ ServerEvents.commandRegistry(event => {
                     );
                     player.tell("§cCould not find your saved position. Teleported to spawn.");
                 }
+		Utils.server.runCommandSilent(`locinfo ${player.username} caldora`);
                 return 1;
             }
 
@@ -148,6 +146,7 @@ ServerEvents.commandRegistry(event => {
                     };
 
                     Utils.server.runCommandSilent(`gamemode adventure ${player.username}`);
+		    Utils.server.runCommandSilent(`locinfo ${player.username} limbo`);
                     player.teleportTo(
                         SHOP.DIMENSION,
                         SHOP.X,

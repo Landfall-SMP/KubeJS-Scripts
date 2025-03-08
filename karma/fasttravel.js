@@ -1,7 +1,7 @@
 // Fast Travel Configuration
 const FAST_TRAVEL_CONFIG = {
-    karmaCostPer100Blocks: 15,
-    minKarmaCost: 25,
+    karmaCostPer100Blocks: 6,
+    minKarmaCost: 5,
     teleportHeight: 240,
     randomVariation: 20,
     coordinateBounds: {

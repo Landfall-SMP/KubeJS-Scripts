@@ -12,11 +12,14 @@ Votifier config is as follows:
 */
 
 // const
-const VOTING_REWARD_KARMA = 100;
+const VOTING_REWARD_KARMA = 50;
+const VOTES_FOR_RANDOM_ITEM = 15; // Number of votes required to receive a random item
 const votingLinks = [
     "https://minecraft-server-list.com/server/509337/vote",
     "https://topg.org/minecraft-servers/server-669693#vote",
-    "https://minecraftservers.org/vote/669897"
+    "https://minecraftservers.org/vote/669897",
+    "https://minecraft.buzz/vote/13016",
+    "https://minecraft-mp.com/server/339513/vote/"
 ];
 
 // init player persistentData for vote points and karma if not already set
@@ -45,14 +48,22 @@ ServerEvents.commandRegistry(event => {
                     return 0;
                 }
 
+                // Initialize player data
+                initializePlayerData(player);
+                
+                // Calculate votes until next random item
+                const currentVotes = player.persistentData.votePoints;
+                const nextMilestone = Math.ceil((currentVotes + 1) / VOTES_FOR_RANDOM_ITEM) * VOTES_FOR_RANDOM_ITEM;
+                const votesUntilMilestone = nextMilestone - currentVotes;
+
                 // Display voting links
                 player.tell("§e--- §6Vote for the Server §e---");
                 votingLinks.forEach(link => {
                     player.tell(`§7- ${link}`);
                 });
-                player.tell(
-                    "§e---     Get Rewards!      §e---"
-                );
+                player.tell("§e---     Get Rewards!      §e---");
+                player.tell(`§6Your Vote Count: §a${currentVotes}`);
+                player.tell(`§6Votes until Random Item: §a${votesUntilMilestone}`);
 
                 return 1;
             })
@@ -75,8 +86,12 @@ ServerEvents.commandRegistry(event => {
                                 initializePlayerData(target);
 
                                 const votePoints = target.persistentData.votePoints;
+                                
+                                // Calculate votes until next random item
+                                const nextMilestone = Math.ceil((votePoints + 1) / VOTES_FOR_RANDOM_ITEM) * VOTES_FOR_RANDOM_ITEM;
+                                const votesUntilMilestone = nextMilestone - votePoints;
 
-                                ctx.source.sendSuccess(`§e${target.name.string} has voted §a${votePoints} §etimes.`, true);
+                                ctx.source.sendSuccess(`§e${target.name.string} has voted §a${votePoints} §etimes. §6(${votesUntilMilestone} votes until next random item)`, true);
                                 return 1;
                             })
                     )
@@ -90,6 +105,7 @@ ServerEvents.commandRegistry(event => {
                         Commands.argument('target', EntityArgument.player())
                             .executes(ctx => {
                                 const target = EntityArgument.getPlayer(ctx, 'target');
+                                const server = ctx.source.server;
 
                                 if (!target) {
                                     ctx.source.sendFailure("§cTarget player not found.");
@@ -103,11 +119,24 @@ ServerEvents.commandRegistry(event => {
                                 target.persistentData.votePoints += 1;
                                 target.persistentData.karmaPoints += VOTING_REWARD_KARMA;
 
-                                // tell player
-                                target.tell("§eDivinity has granted you §a1 Vote Point §eand §a100 Karma §efor voting!");
+                                // Get the new vote count
+                                const newVoteCount = target.persistentData.votePoints;
+
+                                
+                                // Check if player has reached a multiple of 10 votes
+                                if (newVoteCount % VOTES_FOR_RANDOM_ITEM === 0) {
+                                    // Run the randomitem command for this player
+                                    server.runCommandSilent(`randomitem ${target.name.string}`);
+                                    
+                                    // Extra notification for the milestone
+                                    target.tell("§d⭐ §6Voting Milestone Reached! §d⭐");
+                                }
+
+                                // tell player about karma
+                                target.tell(`§eDivinity has granted you §a1 Vote Point §eand §a${VOTING_REWARD_KARMA} Karma §efor voting!`);
 
                                 // respond to executor
-                                ctx.source.sendSuccess(`§eAdded §a1 Vote Point §eand §a100 Karma §eto ${target.name.string}.`, true);
+                                ctx.source.sendSuccess(`§eAdded §a1 Vote Point §eand §a${VOTING_REWARD_KARMA} Karma §eto ${target.name.string}.`, true);
 
                                 return 1;
                             })

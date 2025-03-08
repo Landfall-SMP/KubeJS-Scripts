@@ -1,5 +1,3 @@
-// In the absence of a Forge implementation of Bluemap player hiding, Landfall created this fairly simple script.
-
 const BlueMapAPI = Java.loadClass('de.bluecolored.bluemap.api.BlueMapAPI');
 
 // toggle visibility
